@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "justin-plugins",
+  "description": "Personal Claude Code plugins by Justin Nguyen",
+  "owner": {
+    "name": "Justin Nguyen"
+  },
+  "plugins": [
+    {
+      "name": "notion-life",
+      "description": "Personal daily goal tracker and life management plugin for Notion. Log activities, track streaks, record PRs, save tech notes, and get proactive insights.",
+      "source": "./notion-life",
+      "category": "productivity"
+    }
+  ]
+}
