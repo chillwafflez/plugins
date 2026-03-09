@@ -1,0 +1,8 @@
+{
+  "name": "code-documenter",
+  "version": "0.1.0",
+  "description": "Generate and maintain documentation for codebases — inline comments, architecture docs, internal guides, and external references. Supports output to docs/ folder or Notion.",
+  "author": {
+    "name": "Justin Nguyen"
+  }
+}
