@@ -1,0 +1,9 @@
+{
+  "name": "db-schema-designer",
+  "version": "0.1.0",
+  "description": "Helps developers design, improve, and convert relational database schemas for PostgreSQL and MySQL following best practices, normalization rules, and industry standards.",
+  "author": {
+    "name": "Justin Nguyen"
+  },
+  "keywords": ["database", "schema", "postgresql", "mysql", "normalization", "sql", "design"]
+}

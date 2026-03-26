@@ -11,6 +11,18 @@
       "description": "Personal daily goal tracker and life management plugin for Notion. Log activities, track streaks, record PRs, save tech notes, and get proactive insights.",
       "source": "./notion-life",
       "category": "productivity"
+    },
+    {
+      "name": "code-documenter",
+      "description": "Generate and maintain documentation for codebases — inline comments, architecture docs, internal guides, and external references. Supports output to docs/ folder or Notion.",
+      "source": "./plugins/code-documenter",
+      "category": "development"
+    },
+    {
+      "name": "db-schema-designer",
+      "description": "Design, improve, and convert relational database schemas for PostgreSQL and MySQL. Applies normalization rules (1NF-3NF), enforces naming conventions, and supports SQL, DBML, Prisma, TypeORM, and Sequelize formats.",
+      "source": "./plugins/db-schema-designer",
+      "category": "development"
     }
   ]
 }

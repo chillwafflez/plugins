@@ -1,5 +1,5 @@
 ---
-name: Documentation Standards
+name: documentation-standards
 description: This skill should be used when the user asks to "document code", "add documentation", "write docstrings", "generate docs", "create API reference", "write a README", "add inline comments", "document architecture", "create setup guide", "write onboarding docs", "add JSDoc", "document this function", "write CHANGELOG", or "generate API docs". It also applies when the user mentions documentation standards, coding conventions documentation, documentation best practices, or wants to update existing documentation to match code changes.
 ---
 
