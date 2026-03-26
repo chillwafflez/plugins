@@ -1,5 +1,5 @@
 ---
-name: Create Schema
+name: create-schema
 description: This skill should be used when the user asks to "create a schema", "generate tables", "design a database for", "build a schema from scratch", or provides a natural language description of a database to create. Outputs PostgreSQL or MySQL SQL, DBML, Prisma, TypeORM, or Sequelize.
 argument-hint: <description of the database schema to create>
 allowed-tools: Read, Write, Edit, Glob, Grep
