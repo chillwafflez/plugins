@@ -1,8 +1,0 @@
-{
-  "name": "notion-life",
-  "version": "0.1.0",
-  "description": "Personal daily goal tracker and life management plugin for Notion. Log activities, track streaks, record PRs, save tech notes, and get proactive insights.",
-  "author": {
-    "name": "Justin Nguyen"
-  }
-}
