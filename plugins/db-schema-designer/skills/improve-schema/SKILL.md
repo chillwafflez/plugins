@@ -1,5 +1,5 @@
 ---
-name: Improve Schema
+name: improve-schema
 description: This skill should be used when the user asks to "improve my schema", "analyze my schema", "fix my database design", "optimize my tables", "check my SQL for issues", or wants a schema quality report with a corrected version.
 argument-hint: [path to .sql file or leave blank to auto-detect]
 allowed-tools: Read, Write, Edit, Glob, Grep

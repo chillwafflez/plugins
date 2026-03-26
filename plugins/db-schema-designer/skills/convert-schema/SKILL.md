@@ -1,5 +1,5 @@
 ---
-name: Convert Schema
+name: convert-schema
 description: This skill should be used when the user asks to "convert my schema", "transform SQL to Prisma", "export schema to DBML", "generate TypeORM entities from SQL", "convert PostgreSQL to MySQL", or needs to translate a schema between SQL dialects and ORM formats.
 argument-hint: <source file path> to <target format>
 allowed-tools: Read, Write, Edit, Glob, Grep
