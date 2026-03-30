@@ -121,240 +121,27 @@ Key design decisions:
 
 The SQLite in-memory database is fast but has behavioral differences from PostgreSQL (no array types, different constraint handling, no `gen_random_uuid()`). For tests that rely on PostgreSQL-specific features, use a real PostgreSQL instance via Docker and configure the test database URL through an environment variable. The fixture structure remains the same — only the engine URL changes.
 
-## Auth Fixtures for Protected Endpoints
+## Advanced Testing Patterns
 
-Create fixtures that provide authentication headers for testing protected routes.
+For detailed code examples of all patterns below, see `references/examples.md`.
 
-```python
-from datetime import datetime, timedelta, timezone
-import jwt
+### Auth Fixtures
+JWT auth header fixtures for `auth_headers` (viewer) and `admin_auth_headers` (admin) roles. Generate tokens with proper claims and expiry.
 
-from app.core.config import get_settings
+### Factory Fixtures
+Reusable factory functions that create test entities with sensible defaults and random email generation to prevent unique constraint violations. Consider `factory_boy` for complex domains.
 
-settings = get_settings()
+### Testing CRUD Operations
+Cover both happy paths (201 create, 200 list/update, 204 delete) and error cases (404 not found, 422 validation, 401 unauthenticated, 403 forbidden).
 
+### Dependency Override Pattern
+Use `app.dependency_overrides[dep] = override_fn` to swap dependencies in tests. Always clear overrides after each test. For unit testing services without HTTP, instantiate directly with the test session.
 
-@pytest.fixture
-def auth_headers() -> dict[str, str]:
-    """Generate JWT auth headers for a standard test user."""
-    payload = {
-        "sub": "00000000-0000-0000-0000-000000000001",
-        "email": "testuser@example.com",
-        "role": "viewer",
-        "exp": datetime.now(timezone.utc) + timedelta(hours=1),
-    }
-    token = jwt.encode(payload, settings.auth.secret_key, algorithm=settings.auth.algorithm)
-    return {"Authorization": f"Bearer {token}"}
+### Testing Background Tasks
+Mock side effects with `AsyncMock` and `monkeypatch.setattr`. Patch at the point of use, not where defined.
 
-
-@pytest.fixture
-def admin_auth_headers() -> dict[str, str]:
-    """Generate JWT auth headers for an admin test user."""
-    payload = {
-        "sub": "00000000-0000-0000-0000-000000000002",
-        "email": "admin@example.com",
-        "role": "admin",
-        "exp": datetime.now(timezone.utc) + timedelta(hours=1),
-    }
-    token = jwt.encode(payload, settings.auth.secret_key, algorithm=settings.auth.algorithm)
-    return {"Authorization": f"Bearer {token}"}
-```
-
-## Factory Fixtures for Test Data
-
-Create reusable factories to generate test entities with sensible defaults.
-
-```python
-import uuid
-from app.domains.users.models import User
-
-
-@pytest.fixture
-def user_factory(async_session: AsyncSession):
-    """Factory fixture to create User instances in the test database."""
-    async def _create_user(
-        email: str | None = None,
-        display_name: str = "Test User",
-        is_active: bool = True,
-    ) -> User:
-        user = User(
-            id=uuid.uuid4(),
-            email=email or f"user-{uuid.uuid4().hex[:8]}@example.com",
-            display_name=display_name,
-            hashed_password="hashed_fake_password",
-            is_active=is_active,
-        )
-        async_session.add(user)
-        await async_session.flush()
-        await async_session.refresh(user)
-        return user
-
-    return _create_user
-```
-
-Factory fixtures eliminate the fragility of hardcoded test data and make tests self-documenting — each test creates exactly the data it needs with explicit parameters, and uses sensible defaults for everything else. The random email generation (`user-{uuid}@example.com`) prevents unique constraint violations when multiple tests create users in the same session.
-
-For complex domains with many related entities, consider using a library like `factory_boy` with its async support, or build a hierarchy of factory fixtures where one factory calls another (e.g., `post_factory` internally calls `user_factory` to create an author).
-
-Use factory fixtures in tests to create only the data needed for each scenario:
-
-```python
-async def test_get_user(client: AsyncClient, user_factory, auth_headers):
-    user = await user_factory(email="alice@example.com")
-    response = await client.get(f"/api/v1/users/{user.id}", headers=auth_headers)
-    assert response.status_code == 200
-    assert response.json()["email"] == "alice@example.com"
-```
-
-## Testing CRUD Operations
-
-Structure tests to cover both happy paths and error cases.
-
-### Happy path tests
-
-```python
-async def test_create_user(client: AsyncClient, auth_headers):
-    payload = {
-        "email": "new@example.com",
-        "display_name": "New User",
-        "password": "securepassword123",
-    }
-    response = await client.post("/api/v1/users", json=payload, headers=auth_headers)
-    assert response.status_code == 201
-    data = response.json()
-    assert data["email"] == "new@example.com"
-    assert "id" in data
-    assert "password" not in data  # Sensitive field excluded
-
-
-async def test_list_users(client: AsyncClient, user_factory, auth_headers):
-    await user_factory()
-    await user_factory()
-    response = await client.get("/api/v1/users", headers=auth_headers)
-    assert response.status_code == 200
-    assert len(response.json()["items"]) >= 2
-
-
-async def test_update_user(client: AsyncClient, user_factory, auth_headers):
-    user = await user_factory()
-    response = await client.patch(
-        f"/api/v1/users/{user.id}",
-        json={"display_name": "Updated Name"},
-        headers=auth_headers,
-    )
-    assert response.status_code == 200
-    assert response.json()["display_name"] == "Updated Name"
-
-
-async def test_delete_user(client: AsyncClient, user_factory, admin_auth_headers):
-    user = await user_factory()
-    response = await client.delete(f"/api/v1/users/{user.id}", headers=admin_auth_headers)
-    assert response.status_code == 204
-```
-
-### Error case tests
-
-```python
-async def test_get_nonexistent_user_returns_404(client: AsyncClient, auth_headers):
-    fake_id = "00000000-0000-0000-0000-000000000099"
-    response = await client.get(f"/api/v1/users/{fake_id}", headers=auth_headers)
-    assert response.status_code == 404
-
-
-async def test_create_user_invalid_email_returns_422(client: AsyncClient, auth_headers):
-    payload = {"email": "not-an-email", "display_name": "X", "password": "pass1234"}
-    response = await client.post("/api/v1/users", json=payload, headers=auth_headers)
-    assert response.status_code == 422
-
-
-async def test_unauthenticated_request_returns_401(client: AsyncClient):
-    response = await client.get("/api/v1/users")
-    assert response.status_code == 401
-
-
-async def test_viewer_cannot_delete_returns_403(client: AsyncClient, user_factory, auth_headers):
-    user = await user_factory()
-    response = await client.delete(f"/api/v1/users/{user.id}", headers=auth_headers)
-    assert response.status_code == 403
-```
-
-## Dependency Override Pattern
-
-Override any FastAPI dependency for testing using `app.dependency_overrides`.
-
-```python
-from app.core.dependencies import get_current_user
-
-async def test_with_custom_user(async_session):
-    app = create_app()
-
-    fake_user = User(id=uuid.uuid4(), email="fake@test.com", role="admin")
-
-    async def override_get_current_user():
-        return fake_user
-
-    app.dependency_overrides[get_current_user] = override_get_current_user
-
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        response = await ac.get("/api/v1/admin/dashboard")
-        assert response.status_code == 200
-
-    app.dependency_overrides.clear()
-```
-
-Always call `app.dependency_overrides.clear()` after each test (or in a fixture teardown) to prevent state leakage between tests. The dependency override mechanism is powerful but fragile — if one test overrides a dependency and fails to clean up, every subsequent test in the session sees the override. Using a fixture with `yield` and cleanup in the teardown phase (as shown in the `client` fixture above) is the safest approach.
-
-For unit testing service and repository layers without HTTP, instantiate the class directly with the test session:
-
-```python
-async def test_user_service_get_by_email(async_session, user_factory):
-    user = await user_factory(email="lookup@example.com")
-    repo = UserRepository(async_session)
-    service = UserService(repo)
-    result = await service.get_by_email("lookup@example.com")
-    assert result is not None
-    assert result.id == user.id
-```
-
-This approach tests business logic in isolation from HTTP routing, making tests faster and easier to debug when they fail.
-
-## Testing Background Tasks and Side Effects
-
-For routes that trigger background tasks or side effects (sending emails, publishing events), mock those dependencies in tests to verify they were called without actually performing the operation.
-
-```python
-from unittest.mock import AsyncMock
-
-async def test_create_user_sends_welcome_email(client, monkeypatch):
-    mock_send = AsyncMock()
-    monkeypatch.setattr("app.domains.users.service.send_welcome_email", mock_send)
-
-    payload = {"email": "new@example.com", "display_name": "New", "password": "pass12345678"}
-    response = await client.post("/api/v1/users", json=payload, headers=auth_headers)
-    assert response.status_code == 201
-    mock_send.assert_called_once_with("new@example.com")
-```
-
-Use `monkeypatch` for patching within a single test and `unittest.mock.patch` for broader mocking scenarios. Prefer patching at the point of use (where the function is imported) rather than where it is defined.
-
-## Test Organization
-
-```
-tests/
-├── conftest.py                  # Shared fixtures (engine, session, client, auth)
-├── domains/
-│   ├── users/
-│   │   ├── conftest.py          # User-specific fixtures (user_factory)
-│   │   ├── test_routes.py       # Endpoint integration tests
-│   │   └── test_service.py      # Unit tests for UserService
-│   └── items/
-│       ├── conftest.py
-│       ├── test_routes.py
-│       └── test_service.py
-└── core/
-    └── test_dependencies.py     # Tests for shared dependencies
-```
+### Test Organization
+Mirror domain structure: `tests/domains/{name}/conftest.py` for domain fixtures, `test_routes.py` for integration tests, `test_service.py` for unit tests.
 
 ## Key Rules Summary
 

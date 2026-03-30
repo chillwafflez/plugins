@@ -1,7 +1,7 @@
 {
   "name": "fastapi",
   "version": "0.1.0",
-  "description": "Comprehensive FastAPI development toolkit — scaffolding, code generation, auth, database, testing, Docker, and best practices backed by live Context7 documentation",
+  "description": "Comprehensive FastAPI development toolkit — scaffolding, code generation, auth, database, WebSocket, testing, Docker, and best practices backed by live Context7 documentation",
   "author": {
     "name": "Justin Nguyen"
   },
@@ -15,6 +15,8 @@
     "alembic",
     "postgresql",
     "docker",
+    "websocket",
+    "real-time",
     "testing",
     "code-generation"
   ]

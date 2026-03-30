@@ -110,203 +110,25 @@ The `TimestampMixin` provides a UUID primary key and automatic timestamps for ev
 
 For nullable columns, annotate with `Mapped[str | None]` to communicate optionality at both the Python type level and the database schema level. SQLAlchemy infers `nullable=True` from the `| None` annotation, so there is no need to pass `nullable` explicitly in most cases.
 
-## Relationship Patterns
+## Relationships, Loading, Repository, and Query Patterns
 
-### One-to-Many
+For detailed code examples of all patterns below, see `references/patterns.md`.
 
-```python
-from sqlalchemy.orm import relationship, Mapped, mapped_column
-from sqlalchemy import ForeignKey
-import uuid
+### Relationship Patterns
+- **One-to-many**: Use `relationship(back_populates=...)` with `ForeignKey`. Always specify `back_populates` on both sides — avoid `backref`.
+- **Many-to-many**: Use an association `Table` with `secondary=` parameter. For extra columns, promote to an association object model.
 
-class User(TimestampMixin, Base):
-    __tablename__ = "users"
-    email: Mapped[str] = mapped_column(unique=True, index=True)
-    posts: Mapped[list["Post"]] = relationship(back_populates="author", cascade="all, delete-orphan")
+### Eager vs Lazy Loading (Async)
+Async SQLAlchemy forbids implicit lazy loading (`MissingGreenlet` error). Always load explicitly:
+- **`selectinload`** — Preferred for collections (one-to-many, many-to-many). Fires a second `SELECT ... WHERE id IN (...)`.
+- **`joinedload`** — Preferred for single objects (many-to-one). Uses a JOIN. Call `.unique()` with collections.
+- **Nested loading** — Chain strategies: `selectinload(User.posts).selectinload(Post.tags)`.
 
-class Post(TimestampMixin, Base):
-    __tablename__ = "posts"
-    title: Mapped[str]
-    content: Mapped[str]
-    author_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
-    author: Mapped["User"] = relationship(back_populates="posts")
-```
+### Repository Pattern
+Generic `BaseRepository[T]` with async CRUD: `get_by_id`, `get_all`, `create`, `delete`. Uses `flush()` + `refresh()` within the transaction. Extend for domain-specific queries (e.g., `get_by_email`).
 
-### Many-to-Many with Association Table
-
-```python
-from sqlalchemy import Table, Column, ForeignKey
-
-post_tags = Table(
-    "post_tags",
-    Base.metadata,
-    Column("post_id", ForeignKey("posts.id"), primary_key=True),
-    Column("tag_id", ForeignKey("tags.id"), primary_key=True),
-)
-
-class Post(TimestampMixin, Base):
-    __tablename__ = "posts"
-    title: Mapped[str]
-    tags: Mapped[list["Tag"]] = relationship(secondary=post_tags, back_populates="posts")
-
-class Tag(TimestampMixin, Base):
-    __tablename__ = "tags"
-    name: Mapped[str] = mapped_column(unique=True)
-    posts: Mapped[list["Post"]] = relationship(secondary=post_tags, back_populates="tags")
-```
-
-For association tables that need extra columns (e.g., `created_at`), promote the table to a full ORM model with its own class. This is called the "association object" pattern and it allows storing metadata about the relationship itself — for example, a `UserRole` association model that records when a user was assigned a particular role and who assigned it.
-
-Always specify `back_populates` on both sides of a relationship. This ensures bidirectional consistency — modifying one side of the relationship automatically updates the other side within the same session. Avoid `backref` as it obscures the relationship definition by hiding one side.
-
-## Eager vs Lazy Loading in Async Context
-
-Async SQLAlchemy forbids implicit lazy loading. Accessing an unloaded relationship raises `MissingGreenlet`. Always load relationships explicitly.
-
-### selectinload (preferred for collections)
-
-Fires a second `SELECT ... WHERE id IN (...)` query. Best for one-to-many and many-to-many relationships.
-
-```python
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
-
-stmt = select(User).options(selectinload(User.posts)).where(User.id == user_id)
-result = await session.execute(stmt)
-user = result.scalar_one_or_none()
-```
-
-### joinedload (preferred for single objects)
-
-Uses a `JOIN` to load the related object in one query. Best for many-to-one and one-to-one relationships.
-
-```python
-from sqlalchemy.orm import joinedload
-
-stmt = select(Post).options(joinedload(Post.author)).where(Post.id == post_id)
-result = await session.execute(stmt)
-post = result.unique().scalar_one_or_none()
-```
-
-Call `.unique()` when using `joinedload` with collections to deduplicate rows created by the JOIN.
-
-Choose the right loading strategy based on the access pattern: use `selectinload` when loading a collection (e.g., all posts for a user) because it avoids the Cartesian product problem that JOINs create with multiple rows. Use `joinedload` for single-object relationships (e.g., loading the author of a post) because it adds minimal overhead and avoids a second query. Never use `lazy="select"` (the default) in async code — it triggers implicit I/O that raises `MissingGreenlet`.
-
-### Nested loading
-
-Chain load strategies for deep relationships:
-
-```python
-stmt = select(User).options(
-    selectinload(User.posts).selectinload(Post.tags),
-)
-```
-
-## Repository Pattern
-
-Implement a generic base repository to standardize data access.
-
-```python
-from typing import Generic, TypeVar, Type
-from uuid import UUID
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-T = TypeVar("T")
-
-class BaseRepository(Generic[T]):
-    def __init__(self, model: Type[T], session: AsyncSession):
-        self.model = model
-        self.session = session
-
-    async def get_by_id(self, id: UUID) -> T | None:
-        stmt = select(self.model).where(self.model.id == id)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
-    async def get_all(self, offset: int = 0, limit: int = 100) -> list[T]:
-        stmt = select(self.model).offset(offset).limit(limit)
-        result = await self.session.execute(stmt)
-        return list(result.scalars().all())
-
-    async def create(self, obj: T) -> T:
-        self.session.add(obj)
-        await self.session.flush()
-        await self.session.refresh(obj)
-        return obj
-
-    async def delete(self, obj: T) -> None:
-        await self.session.delete(obj)
-        await self.session.flush()
-```
-
-The base repository encapsulates common data access patterns so domain repositories do not repeat boilerplate. The `flush()` call writes changes to the database within the current transaction without committing — the session dependency handles the final commit. The `refresh()` call reloads the object from the database to pick up server-generated defaults (like `created_at` timestamps and auto-incremented IDs).
-
-Extend for domain-specific queries:
-
-```python
-class UserRepository(BaseRepository[User]):
-    def __init__(self, session: AsyncSession):
-        super().__init__(User, session)
-
-    async def get_by_email(self, email: str) -> User | None:
-        stmt = select(User).where(User.email == email)
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-```
-
-## Query Patterns (SQLAlchemy 2.0 Style)
-
-Always use the `select()` construct. Never use the legacy `session.query()` API. The 2.0-style `select()` is the only approach that works consistently with async sessions, produces clear and composable query objects, and aligns with SQLAlchemy's long-term direction. The legacy `session.query()` API still works in synchronous contexts but is considered deprecated and will not receive new features.
-
-```python
-from sqlalchemy import select, and_, or_, func
-
-# Basic select
-stmt = select(User).where(User.is_active == True)
-result = await session.execute(stmt)
-users = result.scalars().all()
-
-# Filtering with multiple conditions
-stmt = select(Post).where(
-    and_(
-        Post.author_id == user_id,
-        Post.created_at >= start_date,
-    )
-)
-
-# Aggregation
-stmt = select(func.count()).select_from(User).where(User.is_active == True)
-result = await session.execute(stmt)
-count = result.scalar_one()
-
-# Pagination
-stmt = (
-    select(Post)
-    .order_by(Post.created_at.desc())
-    .offset(skip)
-    .limit(limit)
-)
-result = await session.execute(stmt)
-posts = result.scalars().all()
-```
-
-### Bulk operations
-
-For inserting or updating many rows at once, use `session.execute()` with bulk insert constructs rather than adding objects one by one:
-
-```python
-from sqlalchemy import insert
-
-stmt = insert(User).values([
-    {"email": "user1@example.com", "hashed_password": "hash1"},
-    {"email": "user2@example.com", "hashed_password": "hash2"},
-])
-await session.execute(stmt)
-await session.flush()
-```
-
-Bulk operations bypass the ORM's identity map and change tracking, so they are significantly faster for large datasets. Use them for seed scripts, data imports, and batch processing. For operations that need ORM features (relationships, events, validators), stick with `session.add()` and `session.add_all()`.
+### Query Patterns (2.0 Style)
+Always use `select()` — never `session.query()`. Covers: basic select, multi-condition filtering with `and_`/`or_`, aggregation with `func.count()`, pagination with `offset`/`limit`, and bulk operations with `insert().values([...])`.
 
 ## Key Rules Summary
 
