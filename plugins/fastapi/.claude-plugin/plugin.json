@@ -1,0 +1,21 @@
+{
+  "name": "fastapi",
+  "version": "0.1.0",
+  "description": "Comprehensive FastAPI development toolkit — scaffolding, code generation, auth, database, testing, Docker, and best practices backed by live Context7 documentation",
+  "author": {
+    "name": "Justin Nguyen"
+  },
+  "license": "MIT",
+  "keywords": [
+    "fastapi",
+    "python",
+    "api",
+    "sqlalchemy",
+    "pydantic",
+    "alembic",
+    "postgresql",
+    "docker",
+    "testing",
+    "code-generation"
+  ]
+}

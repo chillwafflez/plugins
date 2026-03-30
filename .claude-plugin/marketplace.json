@@ -23,6 +23,12 @@
       "description": "Design, improve, and convert relational database schemas for PostgreSQL and MySQL. Applies normalization rules (1NF-3NF), enforces naming conventions, and supports SQL, DBML, Prisma, TypeORM, and Sequelize formats.",
       "source": "./plugins/db-schema-designer",
       "category": "development"
+    },
+    {
+      "name": "fastapi",
+      "description": "Comprehensive FastAPI development toolkit — scaffolding, code generation, auth, database, testing, Docker, and best practices backed by live Context7 documentation.",
+      "source": "./plugins/fastapi",
+      "category": "development"
     }
   ]
 }
