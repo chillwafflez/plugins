@@ -23,6 +23,12 @@
       "description": "Design, improve, and convert relational database schemas for PostgreSQL and MySQL. Applies normalization rules (1NF-3NF), enforces naming conventions, and supports SQL, DBML, Prisma, TypeORM, and Sequelize formats.",
       "source": "./plugins/db-schema-designer",
       "category": "development"
+    },
+    {
+      "name": "mentor-mode",
+      "description": "A coaching companion that gives hints, leading questions, and authoritative doc links instead of generating code — for when you want to learn, not delegate. Includes /guide, /hint, /evaluate, /find-docs, and /mentor-on session-wide enforcement via a UserPromptSubmit hook.",
+      "source": "./plugins/mentor-mode",
+      "category": "development"
     }
   ]
 }
