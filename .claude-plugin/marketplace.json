@@ -29,6 +29,12 @@
       "description": "Comprehensive FastAPI development toolkit — scaffolding, code generation, auth, database, testing, Docker, and best practices backed by live Context7 documentation.",
       "source": "./plugins/fastapi",
       "category": "development"
+    },
+    {
+      "name": "mentor-mode",
+      "description": "A coaching companion that gives hints, leading questions, and authoritative doc links instead of generating code — for when you want to learn, not delegate. Includes /guide, /hint, /evaluate, /find-docs, and /mentor-on session-wide enforcement via a UserPromptSubmit hook.",
+      "source": "./plugins/mentor-mode",
+      "category": "development"
     }
   ]
 }

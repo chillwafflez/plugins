@@ -1,0 +1,17 @@
+{
+  "description": "Soft enforcement of mentor-mode when /mentor-on is active. Reads .claude/mentor-mode.local.md from the project root and injects mentor-mode instructions into context on every user prompt. No-op when the file is absent or has enabled: false.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/inject-mentor-mode.js\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
