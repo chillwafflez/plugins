@@ -1,0 +1,11 @@
+{
+  "name": "mentor-mode",
+  "version": "0.1.0",
+  "description": "A coaching companion that gives hints, leading questions, and authoritative doc links instead of generating code — for when you want to learn, not delegate.",
+  "author": {
+    "name": "Justin Nguyen",
+    "email": "marketing@taia.us"
+  },
+  "keywords": ["mentor", "learning", "coaching", "education", "skill-building", "socratic"],
+  "license": "MIT"
+}
