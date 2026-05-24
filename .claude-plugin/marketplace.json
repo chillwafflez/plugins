@@ -9,7 +9,7 @@
     {
       "name": "notion-life",
       "description": "Personal daily goal tracker and life management plugin for Notion. Log activities, track streaks, record PRs, save tech notes, and get proactive insights.",
-      "source": "./notion-life",
+      "source": "./plugins/notion-life",
       "category": "productivity"
     },
     {
